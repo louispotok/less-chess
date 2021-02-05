@@ -5,4 +5,4 @@ Note: if you switch timezones, this may screw up a bit. That seems okay.
 
 TODO:
 
-[] authenticate to get 3x faster on lichess API
+[ ] authenticate to get 3x faster on lichess API
