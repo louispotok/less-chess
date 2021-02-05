@@ -10,6 +10,7 @@ The overall approach:
 from datetime import datetime as dt 
 import requests
 import json
+import logging
 from collections import defaultdict
 import config
 import pytz
@@ -28,6 +29,7 @@ def main():
     daily_times = calc(games)
     datapoints = dts_to_dps(daily_times)
     resp = post_datapoints(datapoints)
+    logging.info(f"{resp.status_code}: {resp.text}")
     return resp
 
 
@@ -100,4 +102,5 @@ def get_start_time(first_day=None):
         return dt_to_micro(dt.strptime(first_day, DATE_STR_FORMAT)) - (ONE_DAY_MICRO * 2)
 
 if __name__ == '__main__':
+    logging.basicConfig(filename="./less-chess.log", level=logging.INFO, format="%(asctime)s %(message)s")
     main()
