@@ -1,29 +1,64 @@
 """
 Daily report on how much time you spent playing lichess
+
+The overall approach:
+* get the last beeminder datapoint
+* pull all games starting 2 days before that
+* calculate daily time spent
+* use beeminder's requestid (idempotency key) as the date, we only ever want one datapoint per date and the latest will be the most accurate.
 """
 from datetime import datetime as dt 
 import requests
 import json
 from collections import defaultdict
-import secrets
+import config
+import pytz
+
+API_URL = f"https://www.beeminder.com/api/v1/users/{config.BEEMINDER_USERNAME}/goals/{config.BEEMINDER_GOAL_NAME}/datapoints.json"
+
+DATE_STR_FORMAT = "%Y%m%d"
 
 def main():
-    start_time = get_start_time()
+    datapoints = get_datapoints()
+    latest_dp = max([d['daystamp'] for d in datapoints])
+    games = get_games(latest_dp)
+    daily_times = calc(games)
+    datapoints = dts_to_dps(daily_times)
+    # post_datapoints(daily_times)
+    return daily_times, datapoints
+   
+
+def dts_to_dps(dts):
+    vals = []
+    for k, v in dts.items():
+        vals.append({
+            "value": v / 60,
+            "daystamp": k.strftime(DATE_STR_FORMAT),
+            "requestid": k.strftime(DATE_STR_FORMAT),
+            "comment": "Added by less-chess API"
+            })
+
+def get_games(first_day):
+    """
+    first_day: 'YYYYMMDD' string
+    """
+    start_time = get_start_time(first_day)
     params = {"since": start_time, "moves": False}
     resp = requests.get(
-        f"https://lichess.org/api/games/user/{secrets.LICHESS_USER_NAME}",
+        f"https://lichess.org/api/games/user/{config.LICHESS_USER_NAME}",
         params=params,
         headers={"Accept": "application/x-ndjson"},
     )
     if resp.status_code == 200:
         games = [json.loads(g) for g in resp.text.splitlines()]
-
-        daily_times = calc(games)
-        return daily_times
-        print(daily_times)
+        return games
     else:
         print("error!")
 
+
+def get_datapoints():
+    url = f"{API_URL}?auth_token={config.BEEMINDER_AUTH_TOKEN}"
+    return requests.get(url).json()
 
 def calc(games):
     result = defaultdict(lambda: 0)
@@ -35,18 +70,25 @@ def calc(games):
 
 
 def to_day(ts):
-    return dt.fromtimestamp(ts / 1000).date()
+    return dt.fromtimestamp(ts / 1000, tz=pytz.timezone(config.TIMEZONE)).date()
 
+
+def dt_to_micro(d):
+    return int(dt.timestamp(d)) * 1000
 
 def get_today_midnight():
-    return int(dt.timestamp(
-            dt.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            )) * 1000
+    return dt_to_micro(dt.now().replace(hour=0, minute=0, second=0, microsecond=0))
 
 
-def get_start_time():
+def get_start_time(first_day=None):
+    """
+    first_day: 'YYYYMMDD' string
+    """
     ONE_DAY_MICRO = 24 * 3600 * 1000
-    return get_today_midnight() - (ONE_DAY_MICRO * 7)
+    if first_day is None:
+        return get_today_midnight() - (ONE_DAY_MICRO * 7)
+    else:
+        return dt_to_micro(dt.strptime(first_day, DATE_STR_FORMAT)) - (ONE_DAY_MICRO * 2)
 
 if __name__ == '__main__':
     main()

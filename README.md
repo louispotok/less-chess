@@ -1,13 +1,15 @@
 Instructions for use:
-* `cp secrets.template secrets.py` and fill out your secrets
+* `cp config.template config.py` and fill out the values.
 
-To do:
-* Connect to beeminder API
-* make sure to deal with duplicates
+Waiting on beeminder forum: https://forum.beeminder.com/t/error-creating-datapoints/7776
+
+Note: if you switch timezones, this may screw up a bit. That seems okay.
+
 
 Plan of attack:
-[] GET datapoints for goal (https://api.beeminder.com/#datapoint)
-[] find the latest
-[] fetch games since then
+[x] GET datapoints for goal (https://api.beeminder.com/#datapoint)
+[x] find the latest
+[x] fetch games since then
 [] calc days since then
 [] POST datapoints for each
+[] authenticate to get 3x faster on lichess API
