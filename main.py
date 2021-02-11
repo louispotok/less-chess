@@ -83,14 +83,16 @@ def get_games(first_day):
     )
     if resp.status_code == 200:
         games = [json.loads(g) for g in resp.text.splitlines()]
+        logging.info("fetched games")
         return games
     else:
-        print("error!")
+        logging.error(f"ERROR: could not get games: {resp.text}")
 
 
 def get_datapoints():
     url = f"{DATAPOINTS_API}?auth_token={config.BEEMINDER_AUTH_TOKEN}"
-    return requests.get(url).json()
+    j = requests.get(url).json()
+    return j
 
 def calc(games):
     result = defaultdict(lambda: 0)
