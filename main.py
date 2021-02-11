@@ -2,12 +2,13 @@
 Daily report on how much time you spent playing lichess
 
 The overall approach:
-* get the last beeminder datapoint
+* get the last missing beeminder datapoint
 * pull all games starting 2 days before that
 * calculate daily time spent
 * use beeminder's requestid (idempotency key) as the date, we only ever want one datapoint per date and the latest will be the most accurate.
 """
 from datetime import datetime as dt 
+from datetime import timedelta as td 
 import requests
 import json
 import logging
@@ -24,14 +25,33 @@ DATE_STR_FORMAT = "%Y%m%d"
 
 def main():
     datapoints = get_datapoints()
-    latest_dp = max([d['daystamp'] for d in datapoints])
-    games = get_games(latest_dp)
+    dates = sorted([dt.strptime(dp['daystamp'], DATE_STR_FORMAT).date() for dp in datapoints])
+    day_start = get_first_missing_date(dates)
+    games = get_games(day_start)
     daily_times = calc(games)
+    daily_times = fill_in(daily_times, dates)
     datapoints = dts_to_dps(daily_times)
     resp = post_datapoints(datapoints)
     logging.info(f"{resp.status_code}: {resp.text}")
     return resp
 
+def fill_in(daily_times, dates):
+    curr = min(dates)
+    while curr < dt.now().date():
+        daily_times[curr] += 0
+        curr += td(days=1)
+    return daily_times
+
+
+def get_first_missing_date(dates):
+    val = dates[-1]
+    prev = dates[0]
+    for d in dates[1:]:
+        if d - prev > td(days=1):
+            return prev
+        else:
+            prev = d
+    return val
 
 def post_datapoints(datapoints):
     payload = {"auth_token": config.BEEMINDER_AUTH_TOKEN, "datapoints": datapoints}
@@ -54,6 +74,7 @@ def get_games(first_day):
     first_day: 'YYYYMMDD' string
     """
     start_time = get_start_time(first_day)
+    logging.info(f"getting games since {start_time}")
     params = {"since": start_time, "moves": False}
     resp = requests.get(
         f"https://lichess.org/api/games/user/{config.LICHESS_USER_NAME}",
@@ -87,19 +108,13 @@ def to_day(ts):
 def dt_to_micro(d):
     return int(dt.timestamp(d)) * 1000
 
-def get_today_midnight():
-    return dt_to_micro(dt.now().replace(hour=0, minute=0, second=0, microsecond=0))
 
-
-def get_start_time(first_day=None):
+def get_start_time(first_day):
     """
-    first_day: 'YYYYMMDD' string
+    first_day: datetime.date
     """
     ONE_DAY_MICRO = 24 * 3600 * 1000
-    if first_day is None:
-        return get_today_midnight() - (ONE_DAY_MICRO * 7)
-    else:
-        return dt_to_micro(dt.strptime(first_day, DATE_STR_FORMAT)) - (ONE_DAY_MICRO * 2)
+    return dt_to_micro(dt.combine(first_day,dt.min.time())) - (ONE_DAY_MICRO * 2)
 
 if __name__ == '__main__':
     logging.basicConfig(filename="./less-chess.log", level=logging.INFO, format="%(asctime)s %(message)s")
