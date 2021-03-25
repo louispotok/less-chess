@@ -6,6 +6,13 @@ The overall approach:
 * pull all games starting 2 days before that
 * calculate daily time spent
 * use beeminder's requestid (idempotency key) as the date, we only ever want one datapoint per date and the latest will be the most accurate.
+
+TODO: There is a bug where
+* we start from the last day without games
+* we default to 0 minutes during `calc`.
+* we fill in too far back
+
+So we end up wiping lots of days.
 """
 from datetime import datetime as dt 
 from datetime import timedelta as td 
@@ -90,6 +97,7 @@ def get_games(first_day):
 
 
 def get_datapoints():
+    """ Beeminder datapoints"""
     url = f"{DATAPOINTS_API}?auth_token={config.BEEMINDER_AUTH_TOKEN}"
     j = requests.get(url).json()
     return j

@@ -13,3 +13,4 @@ Note: I didn't think very hard about how timezones are handled.
 TODO:
 
 [ ] authenticate to get 3x faster on lichess API
+[ ] fix bug described in main.py
