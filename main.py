@@ -15,6 +15,7 @@ TODO: There is a bug where
 So we end up wiping lots of days.
 """
 from datetime import datetime as dt 
+from datetime import date
 from datetime import timedelta as td 
 import requests
 import json
@@ -22,6 +23,7 @@ import logging
 from collections import defaultdict
 import config
 import pytz
+import typing
 
 API_BASE = f"https://www.beeminder.com/api/v1/users/{config.BEEMINDER_USERNAME}/goals/{config.BEEMINDER_GOAL_NAME}/"
 DATAPOINTS_API = API_BASE + "datapoints.json"
@@ -34,23 +36,24 @@ def main():
     datapoints = get_datapoints()
     dates = sorted([dt.strptime(dp['daystamp'], DATE_STR_FORMAT).date() for dp in datapoints])
     day_start = get_first_missing_date(dates)
-    games = get_games(day_start)
+    start_time = get_start_time(day_start)
+    games = get_games(start_time)
     daily_times = calc(games)
-    daily_times = fill_in(daily_times, dates)
+    daily_times = fill_in(daily_times, to_day(start_time))
     datapoints = dts_to_dps(daily_times)
     resp = post_datapoints(datapoints)
     logging.info(f"{resp.status_code}: {resp.text}")
     return resp
 
-def fill_in(daily_times, dates):
-    curr = min(dates)
+def fill_in(daily_times: dict, start_time: date) -> dict:
+    curr = start_time
     while curr < dt.now().date():
         daily_times[curr] += 0
         curr += td(days=1)
     return daily_times
 
 
-def get_first_missing_date(dates):
+def get_first_missing_date(dates: typing.List[date]) -> date:
     val = dates[-1]
     prev = dates[0]
     for d in dates[1:]:
@@ -60,12 +63,12 @@ def get_first_missing_date(dates):
             prev = d
     return val
 
-def post_datapoints(datapoints):
+def post_datapoints(datapoints: typing.List[dict]) -> requests.Response:
     payload = {"auth_token": config.BEEMINDER_AUTH_TOKEN, "datapoints": datapoints}
     return requests.post(DATAPOINTS_BULK_API, json=payload)
 
 
-def dts_to_dps(dts):
+def dts_to_dps(dts: typing.Dict[date, float]) -> typing.List[dict]:
     vals = []
     for k, v in dts.items():
         vals.append({
@@ -76,11 +79,10 @@ def dts_to_dps(dts):
             })
     return vals
 
-def get_games(first_day):
+def get_games(start_time: int) -> list:
     """
-    first_day: 'YYYYMMDD' string
+    start_time: microseconds
     """
-    start_time = get_start_time(first_day)
     logging.info(f"getting games since {start_time}")
     params = {"since": start_time, "moves": False}
     resp = requests.get(
@@ -94,16 +96,17 @@ def get_games(first_day):
         return games
     else:
         logging.error(f"ERROR: could not get games: {resp.text}")
+        return []
 
 
-def get_datapoints():
+def get_datapoints() -> list:
     """ Beeminder datapoints"""
     url = f"{DATAPOINTS_API}?auth_token={config.BEEMINDER_AUTH_TOKEN}"
     j = requests.get(url).json()
     return j
 
-def calc(games):
-    result = defaultdict(lambda: 0)
+def calc(games: list) -> typing.Dict[date,float]:
+    result: typing.Dict[date,float] = defaultdict(lambda: 0)
     for g in games:
         day = to_day(g["createdAt"])
         duration = (g["lastMoveAt"] - g["createdAt"]) / 1000
@@ -111,18 +114,15 @@ def calc(games):
     return result
 
 
-def to_day(ts):
+def to_day(ts: int) -> date:
     return dt.fromtimestamp(ts / 1000, tz=pytz.timezone(config.TIMEZONE)).date()
 
 
-def dt_to_micro(d):
+def dt_to_micro(d: dt) -> int:
     return int(dt.timestamp(d)) * 1000
 
 
-def get_start_time(first_day):
-    """
-    first_day: datetime.date
-    """
+def get_start_time(first_day: date) -> int:
     ONE_DAY_MICRO = 24 * 3600 * 1000
     return dt_to_micro(dt.combine(first_day,dt.min.time())) - (ONE_DAY_MICRO * 2)
 
