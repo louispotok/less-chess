@@ -14,3 +14,15 @@ TODO:
 
 [ ] authenticate to get 3x faster on lichess API
 [ ] fix bug described in main.py
+
+
+---
+
+New Approach 2021-06-26: Go backwards until it matches.
+
+"days" are determined by config.TIMEZONE.
+get beeminder datapoints
+call lichess API for yesterday (midnight->midnight in TIMEZONE)
+if the value in the comment matches (2 decimal places) -> stop
+else -> update and do the same for previous day
+
