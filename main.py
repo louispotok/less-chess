@@ -163,9 +163,8 @@ def update_datapoint(curr: Day, day_games: typing.List[Game]) -> None:
             "requestid": curr.formatted_date(),
             "comment": f"{duration_minutes:0.2f} minutes ({len(day_games)} games.) Added by less-chess API"
             }
-    logging.info(f"posting {payload} for {curr}")
-    #resp = requests.post(DATAPOINTS_API, json=payload)
-    #logging.info(f"request for {curr} returned {resp.status_code}")
+    resp = requests.post(DATAPOINTS_API, json=payload)
+    logging.info(f"request for {curr} returned {resp.status_code}")
 
 
 def get_datapoints() -> list:
