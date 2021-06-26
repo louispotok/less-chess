@@ -33,17 +33,37 @@ DATAPOINTS_BULK_API = API_BASE + "datapoints/create_all.json"
 DATE_STR_FORMAT = "%Y%m%d"
 
 def main():
-    datapoints = get_datapoints()
-    dates = sorted([dt.strptime(dp['daystamp'], DATE_STR_FORMAT).date() for dp in datapoints])
-    day_start = get_first_missing_date(dates)
-    start_time = get_start_time(day_start)
+    # call beeminder API
+    existing_datapoints = get_datapoints()
+
+    # figure out start_time
+    start_time = decide_start_time(existing_datapoints)
+
+    # call lichess API
     games = get_games(start_time)
+
+    # prepare beeminder stats
+    new_datapoints = make_new_datapoints(games, start_time)
+
+    # call beeminder API
+    resp = post_datapoints(new_datapoints)
+
+
+    logging.info(f"{resp.status_code}: {resp.text}")
+    return resp
+
+def make_new_datapoints(games: list, start_time: int) -> list:
     daily_times = calc(games)
     daily_times = fill_in(daily_times, to_day(start_time))
     datapoints = dts_to_dps(daily_times)
-    resp = post_datapoints(datapoints)
-    logging.info(f"{resp.status_code}: {resp.text}")
-    return resp
+    return datapoints
+
+
+def decide_start_time(datapoints: list) -> int:
+    dates = sorted([dt.strptime(dp['daystamp'], DATE_STR_FORMAT).date() for dp in datapoints])
+    day_start = get_first_missing_date(dates)
+    start_time = get_start_time(day_start)
+    return start_time
 
 def fill_in(daily_times: dict, start_time: date) -> dict:
     curr = start_time
@@ -106,6 +126,9 @@ def get_datapoints() -> list:
     return j
 
 def calc(games: list) -> typing.Dict[date,float]:
+    """
+    Pure python way to do `games.groupby(day).sum()`
+    """
     result: typing.Dict[date,float] = defaultdict(lambda: 0)
     for g in games:
         day = to_day(g["createdAt"])
