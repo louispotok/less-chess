@@ -133,7 +133,7 @@ def beeminder_is_wrong(
     1. calculate duration for day_games
     2. compare to value from existing_datapoints
     """
-    actual_duration = sum([g.duration_seconds() for g in games])
+    actual_duration = sum([g.duration_seconds() for g in games]) / 60
 
     rel_dp = existing_datapoints.get(curr.formatted_date(), None)
     if not rel_dp:
@@ -164,7 +164,9 @@ def update_datapoint(curr: Day, day_games: typing.List[Game]) -> None:
             "comment": f"{duration_minutes:0.2f} minutes ({len(day_games)} games.) Added by less-chess API"
             }
     resp = requests.post(DATAPOINTS_API, json=payload)
-    logging.info(f"request for {curr} returned {resp.status_code}")
+    logging.info(f"request for {curr.formatted_date()} returned {resp.status_code}")
+    if resp.status_code != 200:
+        logging.info(f"request for {curr.formatted_date()} has reason {resp.reason} and text {resp.text}")
 
 
 def get_datapoints() -> list:
