@@ -2,27 +2,29 @@ A library for people who want to use beeminder to play less chess on lichess.
 
 It assumes you have a "do more" goal on beeminder, structured as "days with `<N` minutes of chess".
 
+Suggestions or bug reports welcome!
+
+# How to use
+
 Instructions for use:
 * `cp config.template config.py` and fill out the values.
-* run `run.sh` periodically (I have a cron job run it every day).
+* Create a virtualenv from requirements.txt
+* run `run.sh` periodically (I have a cron job run it every few hours).
 
-Bug reports welcome!
+# How it works
 
-Note: I didn't think very hard about how timezones are handled.
+The basic approach is:
+* Get all your beeminder datapoints for the goal
+* For each day starting yesterday:
+  * Fetch games from lichess
+  * Calculate total time played
+  * See if the existing datapoint is accurate (storing exact minutes playing the beeminer `comment`, and update if not
+* Then repeat, going backwards one day at a time, until you hit a "good" day.
 
-TODO:
+This is robust against one kind of failure (if the job stops running for several days) but not robust if the job crashes halfway - imagine Monday/Tuesday/Wednesday are all wrong, we fix Wednesday then have a crash. Next time the job runs it will see that Wednesday is correct, and stop.
 
-[ ] authenticate to get 3x faster on lichess API
-[ ] fix bug described in main.py
+## Complications 
 
+Anything involving times and timezones is annoying. This assumes that you want your beeminder "days" to be in local time. If you switch your local time, you may have a day or two of wrong data.
 
----
-
-New Approach 2021-06-26: Go backwards until it matches.
-
-"days" are determined by config.TIMEZONE.
-get beeminder datapoints
-call lichess API for yesterday (midnight->midnight in TIMEZONE)
-if the value in the comment matches (2 decimal places) -> stop
-else -> update and do the same for previous day
-
+Also, there will probably be some wrong data on daylight savings transitions.
