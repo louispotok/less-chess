@@ -1,4 +1,4 @@
-A library for people who want to use beeminder to play less chess on lichess.
+A library for people who play too much lichess, and want to use [beeminder](https://www.beeminder.com/) to play less chess.
 
 It assumes you have a "do more" goal on beeminder, structured as "days with `<N` minutes of chess".
 
