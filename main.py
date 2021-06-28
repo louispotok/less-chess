@@ -49,8 +49,6 @@ class Day:
                 )
 
 
-
-
 @dataclass
 class Game:
     """timestamps in milliseconds"""
@@ -64,7 +62,7 @@ class Game:
 def main():
     # call beeminder API
     existing_datapoints = convert_datapoints(get_datapoints())
-    curr = make_yesterday()
+    curr = make_today()
     day_games = get_games(curr)
     while beeminder_is_wrong(curr, existing_datapoints, day_games):
         logging.info(f"updating for {curr}")
@@ -79,6 +77,9 @@ def main():
     return
 
 def convert_datapoints(datapoints: list) -> typing.Dict[str, dict]:
+    """
+    {requestid: datapoint}
+    """
     return_val = {}
     for d in datapoints:
         k = d['requestid']
@@ -87,16 +88,16 @@ def convert_datapoints(datapoints: list) -> typing.Dict[str, dict]:
         return_val[k] = d
     return return_val
 
-def make_yesterday() -> Day:
+def make_today() -> Day:
     """
-    Whatever today is in TIMEZONE, return the previous day.
-    Probably fails weirdly for DST, don't care.
+    Return today, in TIMEZONE.
+    Probably fails weirdly for DST transition, don't care.
     """
     now = dt.now(pytz.timezone(config.TIMEZONE))
-    yesterday = now - td(days=1)
-    start = dt_to_milli(to_midnight(yesterday))
-    end = dt_to_milli(to_midnight(now))
-    return Day(local_date=yesterday.date(),start=start, end=end)
+    tomorrow = now + td(days=1)
+    start = dt_to_milli(to_midnight(now))
+    end = dt_to_milli(to_midnight(tomorrow))
+    return Day(local_date=now.date(),start=start, end=end)
 
 
 def to_midnight(dt_to_replace: dt) -> dt:
