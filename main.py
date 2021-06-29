@@ -83,6 +83,13 @@ def convert_datapoints(datapoints: list) -> typing.Dict[str, dict]:
     return_val = {}
     for d in datapoints:
         k = d['requestid']
+        
+        # datapoints entered not through the API do not have a request id.
+        # so we discard them.
+        # this filters out "initial datapoint", "recommitted datapoint"
+        # if you want to be able to enter datapoints manually this may break.
+        if not k:
+            continue
         if k in return_val:
             raise ValueError(f"duplicate requestid {k} in beeminder datapoints")
         return_val[k] = d
